@@ -7,7 +7,7 @@ import Image from "next/image"
 
 interface Business {
   title: string
-  description: string
+  description?: string
   image: string
 }
 
