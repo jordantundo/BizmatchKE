@@ -89,7 +89,7 @@ export default function Hero() {
                     }
                   }}
                 >
-                  Generate Ideas Now
+                  Get Started
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
                     width="16"
