@@ -5,6 +5,10 @@ import bcrypt from "bcrypt"
 // Create a connection pool
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
+  ssl: {
+    rejectUnauthorized: false,
+    sslmode: 'require'
+  }
 })
 
 // Test the connection

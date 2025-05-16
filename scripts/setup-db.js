@@ -18,9 +18,19 @@ try {
   console.log("No .env.local file found, using existing environment variables")
 }
 
-// Database connection
+// Verify DATABASE_URL is set
+if (!process.env.DATABASE_URL) {
+  console.error("Error: DATABASE_URL environment variable is not set")
+  process.exit(1)
+}
+
+// Database connection with SSL configuration
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
+  ssl: {
+    rejectUnauthorized: false,
+    sslmode: 'require'
+  }
 })
 
 // SQL schema
@@ -85,6 +95,11 @@ async function setupDatabase() {
   try {
     console.log("Setting up database...")
 
+    // Test connection
+    console.log("\nTesting database connection...")
+    await pool.query('SELECT NOW()')
+    console.log("Database connection successful!")
+
     // Drop existing tables
     console.log("\nDropping existing tables...")
     await pool.query(`
@@ -139,6 +154,11 @@ async function setupDatabase() {
         monthly_expenses DECIMAL(12,2) NOT NULL,
         projected_revenue DECIMAL(12,2) NOT NULL,
         break_even_months INTEGER NOT NULL,
+        working_capital DECIMAL(12,2),
+        sensitivity_analysis JSONB,
+        scenario_analysis JSONB,
+        cost_breakdown JSONB,
+        growth_rate DECIMAL(5,2),
         created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
       );
@@ -205,8 +225,11 @@ async function setupDatabase() {
     await pool.query('DELETE FROM public.profiles WHERE email = $1', ['test@example.com'])
     console.log('Test data cleaned up')
 
+    console.log("\nDatabase setup completed successfully!")
+
   } catch (error) {
-    console.error("Error:", error)
+    console.error("Error setting up database:", error)
+    process.exit(1)
   } finally {
     await pool.end()
   }

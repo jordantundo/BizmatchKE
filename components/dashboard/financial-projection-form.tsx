@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
@@ -10,7 +10,13 @@ import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, For
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { toast } from "@/components/ui/use-toast"
-import { Loader2 } from "lucide-react"
+import { Loader2, Info, TrendingUp, DollarSign, Calendar, Percent } from "lucide-react"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 
 const formSchema = z.object({
   startup_costs: z.string()
@@ -57,16 +63,24 @@ const formSchema = z.object({
     }, {
       message: "Growth rate must be between -100 and 100"
     })
-})
+}).refine((data) => {
+  const fixed = parseFloat(data.fixed_costs_percentage);
+  const variable = parseFloat(data.variable_costs_percentage);
+  return Math.abs(fixed + variable - 100) < 0.01; // Allow for small floating point differences
+}, {
+  message: "Fixed and variable costs percentages must sum to 100%",
+  path: ["variable_costs_percentage"] // Show error on the variable costs field
+});
 
 interface FinancialProjectionFormProps {
   ideaId: string
   ideaTitle: string
+  onSuccess?: () => void
 }
 
-export function FinancialProjectionForm({ ideaId, ideaTitle }: FinancialProjectionFormProps) {
+export function FinancialProjectionForm({ ideaId, ideaTitle, onSuccess }: FinancialProjectionFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const router = useRouter()
+  const [previewMetrics, setPreviewMetrics] = useState<any>(null)
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -98,6 +112,52 @@ export function FinancialProjectionForm({ ideaId, ideaTitle }: FinancialProjecti
       form.setValue("break_even_months", suggestedBreakEven)
     }
   }
+
+  // Function to calculate preview metrics
+  const calculatePreviewMetrics = () => {
+    const values = form.getValues()
+    if (!values.startup_costs || !values.monthly_expenses || !values.projected_revenue) {
+      setPreviewMetrics(null)
+      return
+    }
+
+    const startupCosts = Number(values.startup_costs)
+    const monthlyExpenses = Number(values.monthly_expenses)
+    const projectedRevenue = Number(values.projected_revenue)
+    const breakEvenMonths = Number(values.break_even_months) || 0
+    const growthRate = Number(values.growth_rate) || 0
+
+    const monthlyProfit = projectedRevenue - monthlyExpenses
+    const annualProfit = monthlyProfit * 12
+    const profitMargin = ((monthlyProfit / projectedRevenue) * 100).toFixed(1)
+    const annualRoi = ((annualProfit / startupCosts) * 100).toFixed(1)
+    
+    // Calculate additional metrics
+    const paybackPeriod = (startupCosts / monthlyProfit).toFixed(1)
+    const projectedAnnualRevenue = projectedRevenue * 12
+    const projectedGrowthRevenue = projectedAnnualRevenue * (1 + (growthRate / 100))
+
+    setPreviewMetrics({
+      monthlyProfit,
+      annualProfit,
+      profitMargin,
+      annualRoi,
+      paybackPeriod,
+      projectedAnnualRevenue,
+      projectedGrowthRevenue,
+      breakEvenMonths
+    })
+  }
+
+  // Update preview when relevant fields change
+  useEffect(() => {
+    const subscription = form.watch((value, { name }) => {
+      if (['startup_costs', 'monthly_expenses', 'projected_revenue'].includes(name || '')) {
+        calculatePreviewMetrics()
+      }
+    })
+    return () => subscription.unsubscribe()
+  }, [form.watch])
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsSubmitting(true)
@@ -192,11 +252,13 @@ export function FinancialProjectionForm({ ideaId, ideaTitle }: FinancialProjecti
         description: "Financial projection created successfully",
       })
 
-      // First refresh the router to update the data
-      router.refresh()
-      
-      // Then navigate back to the projections page
-      router.push("/dashboard/financial-projections")
+      // Reset form after successful submission
+      form.reset()
+
+      // Call onSuccess callback if provided
+      if (onSuccess) {
+        onSuccess()
+      }
     } catch (error: any) {
       console.error("Error creating financial projection:", error)
       toast({
@@ -225,7 +287,19 @@ export function FinancialProjectionForm({ ideaId, ideaTitle }: FinancialProjecti
               name="startup_costs"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Startup Costs</FormLabel>
+                  <div className="flex items-center gap-2">
+                    <FormLabel>Startup Costs</FormLabel>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger>
+                          <Info className="h-4 w-4 text-gray-400" />
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Total initial investment required to start the business, including equipment, licenses, and initial inventory.</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </div>
                   <FormControl>
                     <Input
                       {...field}
@@ -236,6 +310,7 @@ export function FinancialProjectionForm({ ideaId, ideaTitle }: FinancialProjecti
                         field.onChange(e)
                         calculateSuggestedValues()
                       }}
+                      disabled={isSubmitting}
                     />
                   </FormControl>
                   <FormDescription>
@@ -251,13 +326,26 @@ export function FinancialProjectionForm({ ideaId, ideaTitle }: FinancialProjecti
               name="monthly_expenses"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Monthly Expenses</FormLabel>
+                  <div className="flex items-center gap-2">
+                    <FormLabel>Monthly Expenses</FormLabel>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger>
+                          <Info className="h-4 w-4 text-gray-400" />
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Estimated monthly operating costs</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </div>
                   <FormControl>
                     <Input
                       {...field}
                       type="number"
                       placeholder="Enter monthly expenses"
                       className="bg-black/60 border-gray-700 focus-visible:ring-amber-500"
+                      disabled={isSubmitting}
                     />
                   </FormControl>
                   <FormDescription>
@@ -273,13 +361,26 @@ export function FinancialProjectionForm({ ideaId, ideaTitle }: FinancialProjecti
               name="projected_revenue"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Projected Monthly Revenue</FormLabel>
+                  <div className="flex items-center gap-2">
+                    <FormLabel>Projected Monthly Revenue</FormLabel>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger>
+                          <Info className="h-4 w-4 text-gray-400" />
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Expected monthly revenue after break-even</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </div>
                   <FormControl>
                     <Input
                       {...field}
                       type="number"
                       placeholder="Enter projected revenue"
                       className="bg-black/60 border-gray-700 focus-visible:ring-amber-500"
+                      disabled={isSubmitting}
                     />
                   </FormControl>
                   <FormDescription>
@@ -295,13 +396,26 @@ export function FinancialProjectionForm({ ideaId, ideaTitle }: FinancialProjecti
               name="break_even_months"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Break-even Period (months)</FormLabel>
+                  <div className="flex items-center gap-2">
+                    <FormLabel>Break-even Period (months)</FormLabel>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger>
+                          <Info className="h-4 w-4 text-gray-400" />
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Estimated time to reach break-even point</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </div>
                   <FormControl>
                     <Input
                       {...field}
                       type="number"
                       placeholder="Enter break-even period"
                       className="bg-black/60 border-gray-700 focus-visible:ring-amber-500"
+                      disabled={isSubmitting}
                     />
                   </FormControl>
                   <FormDescription>
@@ -317,13 +431,26 @@ export function FinancialProjectionForm({ ideaId, ideaTitle }: FinancialProjecti
               name="fixed_costs_percentage"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Fixed Costs Percentage</FormLabel>
+                  <div className="flex items-center gap-2">
+                    <FormLabel>Fixed Costs Percentage</FormLabel>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger>
+                          <Info className="h-4 w-4 text-gray-400" />
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Percentage of monthly expenses that are fixed costs</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </div>
                   <FormControl>
                     <Input
                       {...field}
                       type="number"
                       placeholder="Enter fixed costs percentage"
                       className="bg-black/60 border-gray-700 focus-visible:ring-amber-500"
+                      disabled={isSubmitting}
                     />
                   </FormControl>
                   <FormDescription>
@@ -339,13 +466,26 @@ export function FinancialProjectionForm({ ideaId, ideaTitle }: FinancialProjecti
               name="variable_costs_percentage"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Variable Costs Percentage</FormLabel>
+                  <div className="flex items-center gap-2">
+                    <FormLabel>Variable Costs Percentage</FormLabel>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger>
+                          <Info className="h-4 w-4 text-gray-400" />
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Percentage of monthly expenses that are variable costs</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </div>
                   <FormControl>
                     <Input
                       {...field}
                       type="number"
                       placeholder="Enter variable costs percentage"
                       className="bg-black/60 border-gray-700 focus-visible:ring-amber-500"
+                      disabled={isSubmitting}
                     />
                   </FormControl>
                   <FormDescription>
@@ -361,13 +501,26 @@ export function FinancialProjectionForm({ ideaId, ideaTitle }: FinancialProjecti
               name="growth_rate"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Expected Annual Growth Rate (%)</FormLabel>
+                  <div className="flex items-center gap-2">
+                    <FormLabel>Expected Annual Growth Rate (%)</FormLabel>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger>
+                          <Info className="h-4 w-4 text-gray-400" />
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Expected annual growth rate for revenue</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </div>
                   <FormControl>
                     <Input
                       {...field}
                       type="number"
                       placeholder="Enter expected growth rate"
                       className="bg-black/60 border-gray-700 focus-visible:ring-amber-500"
+                      disabled={isSubmitting}
                     />
                   </FormControl>
                   <FormDescription>
@@ -377,6 +530,58 @@ export function FinancialProjectionForm({ ideaId, ideaTitle }: FinancialProjecti
                 </FormItem>
               )}
             />
+
+            {previewMetrics && (
+              <div className="mt-6 p-4 bg-black/60 rounded-lg border border-gray-700">
+                <h3 className="text-lg font-semibold mb-4">Preview Metrics</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-sm text-gray-400">Monthly Profit</p>
+                    <p className="text-lg font-semibold text-green-500">
+                      ${previewMetrics.monthlyProfit.toLocaleString()}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-400">Annual Profit</p>
+                    <p className="text-lg font-semibold text-green-500">
+                      ${previewMetrics.annualProfit.toLocaleString()}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-400">Profit Margin</p>
+                    <p className="text-lg font-semibold text-blue-500">
+                      {previewMetrics.profitMargin}%
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-400">Annual ROI</p>
+                    <p className="text-lg font-semibold text-amber-500">
+                      {previewMetrics.annualRoi}%
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-400">Payback Period</p>
+                    <p className="text-lg font-semibold text-purple-500">
+                      {previewMetrics.paybackPeriod} months
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-400">Projected Annual Revenue</p>
+                    <p className="text-lg font-semibold text-cyan-500">
+                      ${previewMetrics.projectedAnnualRevenue.toLocaleString()}
+                    </p>
+                  </div>
+                  {previewMetrics.growthRate > 0 && (
+                    <div>
+                      <p className="text-sm text-gray-400">Revenue with Growth</p>
+                      <p className="text-lg font-semibold text-emerald-500">
+                        ${previewMetrics.projectedGrowthRevenue.toLocaleString()}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
 
             <Button
               type="submit"

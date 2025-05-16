@@ -39,45 +39,44 @@ export default function FinancialProjectionsPage() {
   const [selectedIdea, setSelectedIdea] = useState<string>("")
   const router = useRouter()
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setLoading(true)
-        // Fetch both projections and ideas in parallel
-        const [projectionsRes, ideasRes] = await Promise.all([
-          fetch("/api/financial-projections"),
-          fetch("/api/business-ideas")
-        ])
+  const fetchData = async () => {
+    try {
+      setLoading(true)
+      // Fetch both projections and ideas in parallel
+      const [projectionsRes, ideasRes] = await Promise.all([
+        fetch("/api/financial-projections"),
+        fetch("/api/business-ideas")
+      ])
 
-        if (!projectionsRes.ok || !ideasRes.ok) {
-          throw new Error("Failed to fetch data")
-        }
-
-        const [projectionsData, ideasData] = await Promise.all([
-          projectionsRes.json(),
-          ideasRes.json()
-        ])
-
-        setProjections(projectionsData)
-        setIdeas(ideasData)
-      } catch (error) {
-        console.error("Error fetching data:", error)
-        toast({
-          title: "Error",
-          description: "Failed to load data. Please try again.",
-          variant: "destructive",
-        })
-      } finally {
-        setLoading(false)
+      if (!projectionsRes.ok || !ideasRes.ok) {
+        throw new Error("Failed to fetch data")
       }
-    }
 
+      const [projectionsData, ideasData] = await Promise.all([
+        projectionsRes.json(),
+        ideasRes.json()
+      ])
+
+      setProjections(projectionsData)
+      setIdeas(ideasData)
+    } catch (error) {
+      console.error("Error fetching data:", error)
+      toast({
+        title: "Error",
+        description: "Failed to load data. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
     fetchData()
   }, []) // Empty dependency array means this runs once on mount
 
   const handleIdeaChange = (value: string) => {
     setSelectedIdea(value)
-    router.push(`/dashboard/financial-projections/new?idea=${value}`)
   }
 
   const handleDelete = async (id: string) => {
@@ -101,6 +100,12 @@ export default function FinancialProjectionsPage() {
         variant: "destructive",
       })
     }
+  }
+
+  const handleFormSubmit = async () => {
+    // After successful form submission, refresh the data and hide the form
+    await fetchData()
+    setSelectedIdea("")
   }
 
   if (loading) {
@@ -137,7 +142,23 @@ export default function FinancialProjectionsPage() {
           </CardContent>
         </Card>
       ) : selectedIdea ? (
-        <FinancialProjectionForm ideaId={selectedIdea} />
+        <>
+          <Button
+            variant="outline"
+            className="mb-4"
+            onClick={() => setSelectedIdea("")}
+          >
+            ← Back to Projections
+          </Button>
+          <FinancialProjectionForm 
+            ideaId={selectedIdea}
+            ideaTitle={ideas.find(idea => idea.id === selectedIdea)?.title || ""}
+            onSuccess={() => {
+              fetchData()
+              setSelectedIdea("")
+            }}
+          />
+        </>
       ) : (
         <div className="grid gap-6">
           {projections.length > 0 && (
