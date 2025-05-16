@@ -162,7 +162,7 @@ jobs:
         }
         EOF
         # Run linting with the new config
-        npx eslint . --ext .js,.jsx,.ts,.tsx
+        npx eslint .
 
     - name: Run tests
       env:
