@@ -50,8 +50,7 @@ jobs:
       run: |
         echo "Testing database connection..."
         cat > test-db.js << 'EOF'
-        import pg from 'pg';
-        const { Pool } = pg;
+        const { Pool } = require('pg');
 
         async function testConnection() {
           const dbUrl = process.env.DATABASE_URL;
@@ -84,7 +83,7 @@ jobs:
         testConnection();
         EOF
 
-        node --input-type=module test-db.js
+        node test-db.js
 
     - name: Run database migrations
       env:
