@@ -5,15 +5,11 @@ on:
     branches: [ main ]
   pull_request:
     branches: [ main ]
-  # Optional: Add scheduled runs
-  # schedule:
-  #   - cron: '0 0 * * *' # Runs daily at midnight
 
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
   DEPLOY_PATH: /var/www/bizmatchke
-  DATABASE_URL: ${{ secrets.DATABASE_URL }}
 
 jobs:
   test:
@@ -48,88 +44,46 @@ jobs:
     - name: Verify secrets
       run: |
         echo "Checking available secrets..."
-        if [ -n "${{ secrets.DATABASE_URL }}" ]; then
-          echo "DATABASE_URL secret exists"
-        else
-          echo "DATABASE_URL secret is not set"
-        fi
-        if [ -n "${{ secrets.GROQ_API_KEY }}" ]; then
-          echo "GROQ_API_KEY secret exists"
-        else
-          echo "GROQ_API_KEY secret is not set"
-        fi
-        if [ -n "${{ secrets.SESSION_SECRET }}" ]; then
-          echo "SESSION_SECRET secret exists"
-        else
-          echo "SESSION_SECRET secret is not set"
-        fi
+        [ -n "${{ secrets.DATABASE_URL }}" ] && echo "✅ DATABASE_URL is set" || echo "❌ DATABASE_URL is NOT set"
+        [ -n "${{ secrets.GROQ_API_KEY }}" ] && echo "✅ GROQ_API_KEY is set" || echo "❌ GROQ_API_KEY is NOT set"
+        [ -n "${{ secrets.SESSION_SECRET }}" ] && echo "✅ SESSION_SECRET is set" || echo "❌ SESSION_SECRET is NOT set"
 
     - name: Test database connection
       env:
         DATABASE_URL: ${{ secrets.DATABASE_URL }}
       run: |
         echo "Testing database connection..."
-        echo "Checking if DATABASE_URL secret exists..."
         if [ -z "$DATABASE_URL" ]; then
-          echo "DATABASE_URL is empty or not set"
+          echo "❌ DATABASE_URL is empty or not set"
           exit 1
         fi
-        echo "DATABASE_URL is set (length: ${#DATABASE_URL})"
-        
+        echo "✅ DATABASE_URL is set (length: ${#DATABASE_URL})"
+
         cat > test-db.js << 'EOF'
         const { Pool } = require('pg');
 
         async function testConnection() {
-          // Verify DATABASE_URL is set
-          if (!process.env.DATABASE_URL) {
-            console.error('DATABASE_URL environment variable is not set');
-            process.exit(1);
-          }
-
           const dbUrl = process.env.DATABASE_URL;
-          console.log('Database URL length:', dbUrl.length);
-          console.log('Database URL starts with:', dbUrl.substring(0, 20) + '...');
-          console.log('Database URL ends with:', '...' + dbUrl.substring(dbUrl.length - 20));
 
-          // Parse the URL to verify its structure
-          try {
-            const url = new URL(dbUrl);
-            console.log('URL parsed successfully:');
-            console.log('- Protocol:', url.protocol);
-            console.log('- Host:', url.hostname);
-            console.log('- Port:', url.port);
-            console.log('- Database:', url.pathname.slice(1));
-            console.log('- Username:', url.username);
-            console.log('- Has password:', !!url.password);
-            console.log('- Search params:', url.search);
-          } catch (err) {
-            console.error('Failed to parse DATABASE_URL:', err.message);
-            process.exit(1);
-          }
+          console.log('🔎 Database URL starts with:', dbUrl.substring(0, 20) + '...');
+          console.log('🔍 Database URL ends with:', '...' + dbUrl.slice(-20));
 
           const config = {
             connectionString: dbUrl,
-            ssl: {
-              rejectUnauthorized: false
-            }
+            ssl: { rejectUnauthorized: false }
           };
 
-          console.log('Attempting connection with config:', JSON.stringify({
-            ...config,
-            connectionString: config.connectionString.substring(0, 20) + '...'
-          }, null, 2));
-          
           try {
             const pool = new Pool(config);
             const client = await pool.connect();
-            console.log('Successfully connected to database');
+            console.log('✅ Successfully connected to database');
             await client.query('SELECT 1');
-            console.log('Successfully executed test query');
+            console.log('✅ Successfully ran test query');
             client.release();
             await pool.end();
             process.exit(0);
           } catch (err) {
-            console.error('Connection error:', err);
+            console.error('❌ Connection error:', err);
             process.exit(1);
           }
         }
@@ -144,7 +98,7 @@ jobs:
         DATABASE_URL: ${{ secrets.DATABASE_URL }}
         NODE_ENV: test
       run: |
-        echo "Running migrations with database URL: ${DATABASE_URL:0:20}..." # Log first 20 chars for debugging
+        echo "🔧 Running migrations..."
         npm run migrate
 
     - name: Run linting
@@ -196,4 +150,4 @@ jobs:
 
     - name: Deploy to production server
       run: |
-        ssh ${{ secrets.SERVER_BOT }}@${{ secrets.SERVER_IP }} "cd ${{ env.DEPLOY_PATH }} && ./deploy.sh" 
+        ssh ${{ secrets.SERVER_BOT }}@${{ secrets.SERVER_IP }} "cd ${{ env.DEPLOY_PATH }} && ./deploy.sh"
