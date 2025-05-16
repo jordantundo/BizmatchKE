@@ -13,6 +13,7 @@ env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
   DEPLOY_PATH: /var/www/bizmatchke
+  DATABASE_URL: ${{ secrets.DATABASE_URL }}
 
 jobs:
   test:
@@ -45,8 +46,6 @@ jobs:
       run: npm ci
 
     - name: Test database connection
-      env:
-        DATABASE_URL: ${{ secrets.DATABASE_URL }}
       run: |
         echo "Testing database connection..."
         cat > test-db.js << 'EOF'
