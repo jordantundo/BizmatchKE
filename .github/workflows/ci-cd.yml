@@ -44,7 +44,7 @@ jobs:
     - name: Install dependencies
       run: npm ci
 
-    - name: Test database connection
+        - name: Test database connection
       env:
         DATABASE_URL: ${{ secrets.DATABASE_URL }}
       run: |
@@ -52,47 +52,26 @@ jobs:
         node --input-type=module -e "
           import pg from 'pg';
           const { Pool } = pg;
-          
+          const dbUrl = process.env.DATABASE_URL;
+
+          console.log('Database URL starts with:', dbUrl.substring(0, 20) + '...');
+
+          const pool = new Pool({
+            connectionString: dbUrl,
+            ssl: { rejectUnauthorized: false }
+          });
+
           try {
-            const dbUrl = process.env.DATABASE_URL;
-            console.log('Database URL starts with:', dbUrl.substring(0, 20) + '...');
-            
-            // Try different SSL configurations
-            const sslConfigs = [
-              { ssl: false },
-              { ssl: { rejectUnauthorized: false } },
-              { ssl: true }
-            ];
-            
-            async function tryConnection(config) {
-              try {
-                const pool = new Pool({
-                  connectionString: dbUrl,
-                  ...config
-                });
-                await pool.query('SELECT 1');
-                console.log('Database connection successful with config:', config);
-                process.exit(0);
-              } catch (err) {
-                console.log('Connection failed with config:', config, 'Error:', err.message);
-                return false;
-              }
-            }
-            
-            // Try each configuration
-            for (const config of sslConfigs) {
-              console.log('Trying connection with config:', config);
-              const success = await tryConnection(config);
-              if (success) break;
-            }
-            
-            console.error('All connection attempts failed');
-            process.exit(1);
+            await pool.query('SELECT 1');
+            console.log('Database connection successful!');
           } catch (err) {
-            console.error('Error setting up database connection:', err.message);
+            console.error('Connection failed:', err.message);
             process.exit(1);
+          } finally {
+            await pool.end();
           }
         "
+
 
     - name: Run database migrations
       env:
