@@ -51,19 +51,34 @@ jobs:
         echo "Testing database connection..."
         node -e "
           const { Pool } = require('pg');
-          const pool = new Pool({
-            connectionString: process.env.DATABASE_URL,
-            ssl: false
-          });
-          pool.query('SELECT 1')
-            .then(() => {
-              console.log('Database connection successful');
-              process.exit(0);
-            })
-            .catch(err => {
-              console.error('Database connection failed:', err.message);
-              process.exit(1);
+          try {
+            const url = new URL(process.env.DATABASE_URL);
+            const config = {
+              host: url.hostname,
+              port: url.port,
+              database: url.pathname.slice(1),
+              user: url.username,
+              password: url.password,
+              ssl: false
+            };
+            console.log('Connecting to database with config:', {
+              ...config,
+              password: '***' // Hide password in logs
             });
+            const pool = new Pool(config);
+            pool.query('SELECT 1')
+              .then(() => {
+                console.log('Database connection successful');
+                process.exit(0);
+              })
+              .catch(err => {
+                console.error('Database connection failed:', err.message);
+                process.exit(1);
+              });
+          } catch (err) {
+            console.error('Error parsing DATABASE_URL:', err.message);
+            process.exit(1);
+          }
         "
 
     - name: Run database migrations
