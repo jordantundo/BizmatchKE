@@ -46,8 +46,8 @@ jobs:
     - name: Install dependencies
       run: |
         npm ci
-        # Ensure required ESLint packages for Next.js are installed
-        npm install --save-dev eslint @next/eslint-plugin-next eslint-config-next
+        npm install --save-dev eslint@8 @next/eslint-plugin-next eslint-config-next
+
 
 
     - name: Verify secrets
