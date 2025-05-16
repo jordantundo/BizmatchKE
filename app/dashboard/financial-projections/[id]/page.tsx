@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react"
 import { useParams, useRouter } from "next/navigation"
 import Link from "next/link"
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { toast } from "@/components/ui/use-toast"
@@ -27,40 +26,18 @@ export default function FinancialProjectionDetailsPage() {
   const [isDeleting, setIsDeleting] = useState(false)
   const params = useParams()
   const router = useRouter()
-  const supabase = createClientComponentClient()
   const projectionId = params.id as string
 
   useEffect(() => {
     const fetchProjection = async () => {
       try {
         setLoading(true)
-        const { data: userData } = await supabase.auth.getUser()
-        if (!userData.user) return
-
-        // Fetch the financial projection
-        const { data: projectionData, error: projectionError } = await supabase
-          .from("financial_projections")
-          .select("*")
-          .eq("id", projectionId)
-          .eq("user_id", userData.user.id)
-          .single()
-
-        if (projectionError) throw projectionError
-
-        setProjection(projectionData)
-
-        // Fetch the associated business idea
-        if (projectionData.idea_id) {
-          const { data: ideaData, error: ideaError } = await supabase
-            .from("business_ideas")
-            .select("*")
-            .eq("id", projectionData.idea_id)
-            .single()
-
-          if (ideaError) throw ideaError
-
-          setBusinessIdea(ideaData)
-        }
+        const response = await fetch(`/api/financial-projections/${projectionId}`)
+        if (!response.ok) throw new Error("Failed to fetch projection")
+        
+        const data = await response.json()
+        setProjection(data)
+        setBusinessIdea(data.business_idea)
       } catch (error) {
         console.error("Error fetching financial projection:", error)
         toast({
@@ -75,14 +52,16 @@ export default function FinancialProjectionDetailsPage() {
     }
 
     fetchProjection()
-  }, [supabase, projectionId, router])
+  }, [projectionId, router])
 
   const handleDelete = async () => {
     setIsDeleting(true)
     try {
-      const { error } = await supabase.from("financial_projections").delete().eq("id", projectionId)
+      const response = await fetch(`/api/financial-projections/${projectionId}`, {
+        method: "DELETE",
+      })
 
-      if (error) throw error
+      if (!response.ok) throw new Error("Failed to delete projection")
 
       toast({
         title: "Projection deleted successfully",

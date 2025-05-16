@@ -1,49 +1,37 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useSearchParams } from "next/navigation"
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
-import { FinancialProjectionForm } from "@/components/dashboard/financial-projection-form"
+import { useRouter } from "next/navigation"
+import Link from "next/link"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Button } from "@/components/ui/button"
 import { Loader2, ArrowLeft } from "lucide-react"
-import Link from "next/link"
+import { FinancialProjectionForm } from "@/components/dashboard/financial-projection-form"
+
+interface BusinessIdea {
+  id: string
+  title: string
+  description: string
+  industry: string
+  location: string
+}
 
 export default function NewFinancialProjectionPage() {
   const [loading, setLoading] = useState(true)
-  const [ideas, setIdeas] = useState<any[]>([])
-  const [selectedIdeaId, setSelectedIdeaId] = useState<string | null>(null)
-  const [selectedIdea, setSelectedIdea] = useState<any>(null)
-  const searchParams = useSearchParams()
-  const ideaId = searchParams.get("ideaId")
-  const supabase = createClientComponentClient()
+  const [ideas, setIdeas] = useState<BusinessIdea[]>([])
+  const [selectedIdeaId, setSelectedIdeaId] = useState<string>("")
+  const [selectedIdea, setSelectedIdea] = useState<BusinessIdea | null>(null)
+  const router = useRouter()
 
   useEffect(() => {
-    const fetchIdeas = async () => {
+    const fetchSavedIdeas = async () => {
       try {
-        setLoading(true)
-        const { data: userData } = await supabase.auth.getUser()
-        if (!userData.user) return
-
-        // Fetch all business ideas for the user
-        const { data: ideasData, error: ideasError } = await supabase
-          .from("business_ideas")
-          .select("*")
-          .eq("user_id", userData.user.id)
-          .order("created_at", { ascending: false })
-
-        if (ideasError) throw ideasError
-
-        setIdeas(ideasData || [])
-
-        // If ideaId is provided in URL, select that idea
-        if (ideaId) {
-          setSelectedIdeaId(ideaId)
-          const idea = ideasData?.find((idea) => idea.id === ideaId)
-          if (idea) {
-            setSelectedIdea(idea)
-          }
-        }
+        const response = await fetch("/api/business-ideas")
+        if (!response.ok) throw new Error("Failed to fetch business ideas")
+        
+        const data = await response.json()
+        setIdeas(data)
       } catch (error) {
         console.error("Error fetching business ideas:", error)
       } finally {
@@ -51,13 +39,13 @@ export default function NewFinancialProjectionPage() {
       }
     }
 
-    fetchIdeas()
-  }, [supabase, ideaId])
+    fetchSavedIdeas()
+  }, [])
 
   const handleIdeaChange = (value: string) => {
     setSelectedIdeaId(value)
     const idea = ideas.find((idea) => idea.id === value)
-    setSelectedIdea(idea)
+    setSelectedIdea(idea || null)
   }
 
   if (loading) {
@@ -80,23 +68,23 @@ export default function NewFinancialProjectionPage() {
         </Link>
         <h2 className="text-3xl font-bold">Create Financial Projection</h2>
         <p className="text-gray-400 mt-2">
-          Analyze the financial viability of your business idea with detailed projections.
+          Analyze the financial viability of your saved business idea with detailed projections.
         </p>
       </div>
 
       {ideas.length === 0 ? (
         <Card className="bg-black/40 border-gray-800">
           <CardHeader>
-            <CardTitle>No Business Ideas Found</CardTitle>
+            <CardTitle>No Saved Business Ideas</CardTitle>
             <CardDescription>
-              You need to create or save a business idea before you can create a financial projection.
+              You need to save a business idea before you can create a financial projection.
             </CardDescription>
           </CardHeader>
           <CardContent>
             <Link href="/dashboard/idea-generator">
-              <button className="bg-amber-500 hover:bg-amber-600 text-black px-4 py-2 rounded-md">
+              <Button className="bg-amber-500 hover:bg-amber-600 text-black">
                 Generate Business Ideas
-              </button>
+              </Button>
             </Link>
           </CardContent>
         </Card>
@@ -106,7 +94,7 @@ export default function NewFinancialProjectionPage() {
         <Card className="bg-black/40 border-gray-800">
           <CardHeader>
             <CardTitle>Select a Business Idea</CardTitle>
-            <CardDescription>Choose a business idea to create a financial projection for.</CardDescription>
+            <CardDescription>Choose a saved business idea to create a financial projection for.</CardDescription>
           </CardHeader>
           <CardContent>
             <Select onValueChange={handleIdeaChange}>

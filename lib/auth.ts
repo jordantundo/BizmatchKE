@@ -12,6 +12,17 @@ export type Session = {
   expires: string
 }
 
+export const sessionOptions = {
+  password: process.env.SESSION_SECRET || "complex-secret-key",
+  cookieName: "session",
+  cookieOptions: {
+    secure: process.env.NODE_ENV === "production",
+    httpOnly: true,
+    sameSite: "lax" as const,
+    maxAge: 60 * 60 * 24 * 7, // 1 week
+  },
+}
+
 export async function getSession(): Promise<Session | null> {
   const cookieStore = cookies()
   const sessionCookie = cookieStore.get("session")

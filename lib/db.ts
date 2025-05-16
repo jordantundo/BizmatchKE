@@ -101,15 +101,47 @@ export async function createBusinessIdea(
   investmentMin: number,
   investmentMax: number,
   location: string,
+  skillsRequired: string[] = [],
+  targetMarket: string = "",
+  potentialChallenges: string[] = [],
+  successFactors: string[] = [],
+  marketTrends: string[] = [],
+  successRateEstimate: string = "",
+  estimatedRoi: string = "",
+  economicData: any = {}
 ) {
-  const result = await query(
-    `INSERT INTO business_ideas 
-     (id, user_id, title, description, industry, investment_min, investment_max, location, created_at, updated_at) 
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW()) 
-     RETURNING *`,
-    [uuidv4(), userId, title, description, industry, investmentMin, investmentMax, location],
-  )
-  return result.rows[0]
+  try {
+    const result = await query(
+      `INSERT INTO business_ideas 
+       (id, user_id, title, description, industry, investment_min, investment_max, location, 
+        skills_required, target_market, potential_challenges, success_factors, market_trends,
+        success_rate_estimate, estimated_roi, economic_data, created_at, updated_at) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, NOW(), NOW()) 
+       RETURNING *`,
+      [
+        uuidv4(),
+        userId,
+        title,
+        description,
+        industry,
+        investmentMin,
+        investmentMax,
+        location,
+        JSON.stringify(skillsRequired || []),
+        targetMarket || "",
+        JSON.stringify(potentialChallenges || []),
+        JSON.stringify(successFactors || []),
+        JSON.stringify(marketTrends || []),
+        successRateEstimate || "",
+        estimatedRoi || "",
+        JSON.stringify(economicData || {})
+      ],
+    )
+    return result.rows[0]
+  } catch (error) {
+    console.error("Error in createBusinessIdea:", error)
+    throw error
+  }
 }
 
 export async function deleteBusinessIdea(id: string, userId: string) {
@@ -124,14 +156,43 @@ export async function deleteBusinessIdea(id: string, userId: string) {
 // Financial projections functions
 export async function getFinancialProjections(userId: string) {
   const result = await query(
-    `SELECT fp.*, bi.title, bi.industry, bi.location 
+    `SELECT fp.*, bi.title, bi.description, bi.industry, bi.location 
      FROM financial_projections fp
      JOIN business_ideas bi ON fp.idea_id = bi.id
      WHERE fp.user_id = $1 
      ORDER BY fp.created_at DESC`,
     [userId],
   )
-  return result.rows
+
+  // Transform the result to match the expected format and calculate metrics
+  return result.rows.map(row => {
+    const monthlyProfit = row.projected_revenue - row.monthly_expenses
+    const annualProfit = monthlyProfit * 12
+    const profitMargin = ((monthlyProfit / row.projected_revenue) * 100)
+    const annualRoi = ((annualProfit / row.startup_costs) * 100)
+
+    const businessIdea = {
+      title: row.title,
+      description: row.description,
+      industry: row.industry,
+      location: row.location
+    }
+
+    // Remove business idea fields from the main object
+    delete row.title
+    delete row.description
+    delete row.industry
+    delete row.location
+
+    return {
+      ...row,
+      business_idea: businessIdea,
+      monthly_profit: monthlyProfit,
+      annual_profit: annualProfit,
+      profit_margin: profitMargin,
+      annual_roi: annualRoi
+    }
+  })
 }
 
 export async function getFinancialProjectionById(id: string, userId: string) {
@@ -150,22 +211,99 @@ export async function getFinancialProjectionById(id: string, userId: string) {
   return result.rows[0]
 }
 
-export async function createFinancialProjection(
+export async function createFinancialProjections(
   userId: string,
   ideaId: string,
   startupCosts: number,
   monthlyExpenses: number,
   projectedRevenue: number,
   breakEvenMonths: number,
+  workingCapital: number,
+  sensitivityAnalysis: any,
+  scenarioAnalysis: any,
+  costBreakdown: any,
+  growthRate: number
 ) {
-  const result = await query(
-    `INSERT INTO financial_projections 
-     (id, user_id, idea_id, startup_costs, monthly_expenses, projected_revenue, break_even_months, created_at, updated_at) 
-     VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW()) 
-     RETURNING *`,
-    [uuidv4(), userId, ideaId, startupCosts, monthlyExpenses, projectedRevenue, breakEvenMonths],
-  )
-  return result.rows[0]
+  try {
+    // Validate inputs
+    if (startupCosts <= 0) throw new Error("Startup costs must be positive")
+    if (monthlyExpenses <= 0) throw new Error("Monthly expenses must be positive")
+    if (projectedRevenue <= 0) throw new Error("Projected revenue must be positive")
+    if (breakEvenMonths <= 0) throw new Error("Break-even months must be positive")
+    if (monthlyExpenses >= projectedRevenue) throw new Error("Monthly expenses cannot be greater than projected revenue")
+
+    // Calculate additional financial metrics
+    const monthlyProfit = projectedRevenue - monthlyExpenses
+    const annualProfit = monthlyProfit * 12
+    const roi = ((annualProfit / startupCosts) * 100).toFixed(2)
+    const paybackPeriod = Math.ceil(startupCosts / monthlyProfit)
+    
+    // Calculate cash flow projections for first year
+    const monthlyCashFlows = Array.from({ length: 12 }, (_, i) => {
+      const month = i + 1
+      const cumulativeProfit = monthlyProfit * month
+      return {
+        month,
+        revenue: projectedRevenue,
+        expenses: monthlyExpenses,
+        profit: monthlyProfit,
+        cumulative_profit: cumulativeProfit
+      }
+    })
+
+    console.log("Creating financial projection with values:", {
+      userId,
+      ideaId,
+      startupCosts,
+      monthlyExpenses,
+      projectedRevenue,
+      breakEvenMonths,
+      monthlyProfit,
+      annualProfit,
+      roi,
+      paybackPeriod,
+      workingCapital,
+      sensitivityAnalysis,
+      scenarioAnalysis,
+      costBreakdown,
+      growthRate
+    })
+
+    const result = await query(
+      `INSERT INTO financial_projections 
+       (id, user_id, idea_id, startup_costs, monthly_expenses, projected_revenue, 
+        break_even_months, roi, payback_period, monthly_cash_flows, working_capital,
+        sensitivity_analysis, scenario_analysis, cost_breakdown, created_at, updated_at) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, NOW(), NOW()) 
+       RETURNING *`,
+      [
+        uuidv4(),
+        userId,
+        ideaId,
+        startupCosts,
+        monthlyExpenses,
+        projectedRevenue,
+        breakEvenMonths,
+        roi,
+        paybackPeriod,
+        JSON.stringify(monthlyCashFlows),
+        workingCapital,
+        JSON.stringify(sensitivityAnalysis),
+        JSON.stringify(scenarioAnalysis),
+        JSON.stringify(costBreakdown)
+      ]
+    )
+
+    if (!result.rows[0]) {
+      throw new Error("Failed to create financial projection")
+    }
+
+    console.log("Financial projection created:", result.rows[0])
+    return result.rows[0]
+  } catch (error) {
+    console.error("Error in createFinancialProjections:", error)
+    throw error
+  }
 }
 
 export async function deleteFinancialProjection(id: string, userId: string) {

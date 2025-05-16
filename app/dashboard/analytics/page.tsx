@@ -1,21 +1,20 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 import { StatisticsDashboard } from "@/components/dashboard/statistics-dashboard"
 import { Loader2 } from "lucide-react"
 
 export default function AnalyticsPage() {
   const [userId, setUserId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
-  const supabase = createClientComponentClient()
 
   useEffect(() => {
     const getUser = async () => {
       try {
-        const { data: userData } = await supabase.auth.getUser()
-        if (userData.user) {
-          setUserId(userData.user.id)
+        const response = await fetch('/api/auth/me')
+        const user = await response.json()
+        if (user) {
+          setUserId(user.id)
         }
       } catch (error) {
         console.error("Error fetching user:", error)
@@ -25,7 +24,7 @@ export default function AnalyticsPage() {
     }
 
     getUser()
-  }, [supabase])
+  }, [])
 
   if (loading) {
     return (

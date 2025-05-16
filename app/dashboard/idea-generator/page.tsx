@@ -122,9 +122,27 @@ export default function IdeaGeneratorPage() {
     try {
       // Get user session
       const response = await fetch("/api/auth/me")
-      if (!response.ok) throw new Error("Not authenticated")
+      if (!response.ok) {
+        const error = await response.text()
+        throw new Error(`Authentication failed: ${error}`)
+      }
       
       const userData = await response.json()
+      console.log("User data:", userData)
+
+      // Calculate investment range based on budget
+      const budgetRange = form.getValues().budget.split("-")
+      const investmentMin = parseInt(budgetRange[0])
+      const investmentMax = budgetRange[1] === "+" ? investmentMin * 2 : parseInt(budgetRange[1])
+
+      console.log("Saving idea with data:", {
+        title: idea.title,
+        description: idea.description,
+        industry: form.getValues().industry,
+        investment_min: investmentMin,
+        investment_max: investmentMax,
+        location: form.getValues().location,
+      })
 
       // Save the idea
       const saveResponse = await fetch("/api/business-ideas", {
@@ -136,37 +154,106 @@ export default function IdeaGeneratorPage() {
           title: idea.title,
           description: idea.description,
           industry: form.getValues().industry,
-          investmentMin: 0,
-          investmentMax: 0,
+          investment_min: investmentMin,
+          investment_max: investmentMax,
           location: form.getValues().location,
+          skills_required: idea.skills_required || [],
+          target_market: idea.target_market || "",
+          potential_challenges: idea.potential_challenges || [],
+          success_factors: idea.success_factors || [],
+          market_trends: idea.market_trends || [],
+          success_rate_estimate: idea.success_rate_estimate || "",
+          estimated_roi: idea.estimated_roi || "",
+          economic_data: idea.economic_data || {}
         }),
       })
 
-      if (!saveResponse.ok) throw new Error("Failed to save idea")
+      if (!saveResponse.ok) {
+        const errorText = await saveResponse.text()
+        console.error("Save response error:", {
+          status: saveResponse.status,
+          statusText: saveResponse.statusText,
+          error: errorText
+        })
+        throw new Error(`Failed to save idea: ${errorText}`)
+      }
 
       const savedIdea = await saveResponse.json()
+      console.log("Saved idea response:", savedIdea)
 
       // Update the saved ideas list
       setSavedIdeas((prev) => [...prev, idea.title])
 
       // Create a basic financial projection
-      const monthlyExpenses = 5000 // Default monthly expenses
-      const projectedRevenue = 7500 // Default projected revenue
-      const breakEvenMonths = 12 // Default break-even period
+      const startupCosts = investmentMin
+      const monthlyExpenses = Math.round(startupCosts * 0.1) // 10% of startup costs
+      const projectedRevenue = Math.round(monthlyExpenses * 1.5) // 50% more than expenses
+      const breakEvenMonths = Math.ceil(startupCosts / (projectedRevenue - monthlyExpenses))
 
-      await fetch("/api/financial-projections", {
+      console.log("Creating financial projection with data:", {
+        idea_id: savedIdea.id,
+        startup_costs: startupCosts,
+        monthly_expenses: monthlyExpenses,
+        projected_revenue: projectedRevenue,
+        break_even_months: breakEvenMonths,
+      })
+
+      const projectionResponse = await fetch("/api/financial-projections", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          ideaId: savedIdea.id,
-          startupCosts: 50000,
-          monthlyExpenses,
-          projectedRevenue,
-          breakEvenMonths,
+          idea_id: savedIdea.id,
+          startup_costs: startupCosts,
+          monthly_expenses: monthlyExpenses,
+          projected_revenue: projectedRevenue,
+          break_even_months: breakEvenMonths,
+          working_capital: monthlyExpenses * 3,
+          sensitivity_analysis: {
+            revenue_variation: [
+              { scenario: "10% decrease", impact: (projectedRevenue * 0.9 - monthlyExpenses) * 12 },
+              { scenario: "10% increase", impact: (projectedRevenue * 1.1 - monthlyExpenses) * 12 }
+            ],
+            expense_variation: [
+              { scenario: "10% increase", impact: (projectedRevenue - monthlyExpenses * 1.1) * 12 },
+              { scenario: "10% decrease", impact: (projectedRevenue - monthlyExpenses * 0.9) * 12 }
+            ]
+          },
+          scenario_analysis: {
+            best_case: {
+              revenue: projectedRevenue * 1.2,
+              expenses: monthlyExpenses * 0.9,
+              profit: (projectedRevenue * 1.2 - monthlyExpenses * 0.9) * 12
+            },
+            worst_case: {
+              revenue: projectedRevenue * 0.8,
+              expenses: monthlyExpenses * 1.1,
+              profit: (projectedRevenue * 0.8 - monthlyExpenses * 1.1) * 12
+            }
+          },
+          cost_breakdown: {
+            fixed_costs: monthlyExpenses * 0.6,
+            variable_costs: monthlyExpenses * 0.4,
+            one_time_costs: startupCosts * 0.7,
+            operating_expenses: startupCosts * 0.3
+          },
+          growth_rate: 10 // Default 10% annual growth rate
         }),
       })
+
+      if (!projectionResponse.ok) {
+        const errorText = await projectionResponse.text()
+        console.error("Projection response error:", {
+          status: projectionResponse.status,
+          statusText: projectionResponse.statusText,
+          error: errorText
+        })
+        throw new Error(`Failed to create financial projection: ${errorText}`)
+      }
+
+      const projectionData = await projectionResponse.json()
+      console.log("Created financial projection:", projectionData)
 
       toast({
         title: "Success",
@@ -174,11 +261,11 @@ export default function IdeaGeneratorPage() {
       })
 
       router.refresh()
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error saving idea:", error)
       toast({
         title: "Error",
-        description: "Failed to save business idea",
+        description: error.message || "Failed to save business idea",
         variant: "destructive",
       })
     } finally {

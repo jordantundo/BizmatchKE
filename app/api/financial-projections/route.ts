@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server"
 import { cookies } from "next/headers"
-import { query } from "@/lib/db"
+import { query, createFinancialProjections, getFinancialProjections } from "@/lib/db"
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const cookieStore = cookies()
     const sessionCookie = cookieStore.get("session")
@@ -14,30 +14,8 @@ export async function GET() {
     const session = JSON.parse(sessionCookie.value)
     const userId = session.user.id
 
-    const result = await query(
-      `SELECT 
-        fp.id,
-        fp.idea_id,
-        fp.startup_costs,
-        fp.monthly_expenses,
-        fp.projected_revenue,
-        fp.break_even_months,
-        fp.created_at,
-        fp.updated_at,
-        json_build_object(
-          'title', bi.title,
-          'description', bi.description,
-          'industry', bi.industry,
-          'location', bi.location
-        ) as business_idea
-       FROM financial_projections fp
-       JOIN business_ideas bi ON fp.idea_id = bi.id
-       WHERE fp.user_id = $1
-       ORDER BY fp.created_at DESC`,
-      [userId]
-    )
-
-    return NextResponse.json(result.rows)
+    const projections = await getFinancialProjections(userId)
+    return NextResponse.json(projections)
   } catch (error) {
     console.error("Error fetching financial projections:", error)
     return new NextResponse("Internal Server Error", { status: 500 })
@@ -56,19 +34,59 @@ export async function POST(request: Request) {
     const session = JSON.parse(sessionCookie.value)
     const userId = session.user.id
 
-    const { ideaId, startupCosts, monthlyExpenses, projectedRevenue, breakEvenMonths } = await request.json()
+    const {
+      idea_id,
+      startup_costs,
+      monthly_expenses,
+      projected_revenue,
+      break_even_months,
+      working_capital,
+      sensitivity_analysis,
+      scenario_analysis,
+      cost_breakdown,
+      growth_rate
+    } = await request.json()
 
-    const result = await query(
-      `INSERT INTO financial_projections 
-       (user_id, idea_id, startup_costs, monthly_expenses, projected_revenue, break_even_months)
-       VALUES ($1, $2, $3, $4, $5, $6)
-       RETURNING *`,
-      [userId, ideaId, startupCosts, monthlyExpenses, projectedRevenue, breakEvenMonths]
-    )
+    // Validate input data
+    if (!idea_id || !startup_costs || !monthly_expenses || !projected_revenue || !break_even_months) {
+      return new NextResponse("Missing required fields", { status: 400 })
+    }
 
-    return NextResponse.json(result.rows[0])
+    // Validate numeric values
+    if (isNaN(startup_costs) || isNaN(monthly_expenses) || isNaN(projected_revenue) || isNaN(break_even_months)) {
+      return new NextResponse("Invalid numeric values", { status: 400 })
+    }
+
+    // Create financial projections with enhanced calculations
+    try {
+      const projection = await createFinancialProjections(
+        userId,
+        idea_id,
+        startup_costs,
+        monthly_expenses,
+        projected_revenue,
+        break_even_months,
+        working_capital,
+        sensitivity_analysis,
+        scenario_analysis,
+        cost_breakdown,
+        growth_rate
+      )
+
+      // Fetch the complete projection data including business idea details
+      const completeProjection = await getFinancialProjections(userId)
+      const newProjection = completeProjection.find(p => p.id === projection.id)
+
+      if (!newProjection) {
+        throw new Error("Failed to fetch created projection")
+      }
+
+      return NextResponse.json(newProjection)
+    } catch (error: any) {
+      return new NextResponse(error.message || "Error creating financial projection", { status: 400 })
+    }
   } catch (error) {
-    console.error("Error creating financial projection:", error)
+    console.error("Error creating financial projections:", error)
     return new NextResponse("Internal Server Error", { status: 500 })
   }
 } 
