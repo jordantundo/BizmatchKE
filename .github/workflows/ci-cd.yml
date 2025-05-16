@@ -26,7 +26,27 @@
 
     - name: Install dependencies
       run: npm ci
-
+    - name: Test database connection
+      env:
+        DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      run: |
+        echo "Testing database connection..."
+        node -e "
+          const { Pool } = require('pg');
+          const pool = new Pool({
+            connectionString: process.env.DATABASE_URL,
+            ssl: { rejectUnauthorized: false }
+          });
+          pool.query('SELECT 1')
+            .then(() => {
+              console.log('Database connection successful');
+              process.exit(0);
+            })
+            .catch(err => {
+              console.error('Database connection failed:', err.message);
+              process.exit(1);
+            });
+        "
     - name: Run database migrations
       env:
         DATABASE_URL: ${{ secrets.DATABASE_URL }}
