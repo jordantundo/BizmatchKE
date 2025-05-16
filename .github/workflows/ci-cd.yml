@@ -52,26 +52,21 @@ jobs:
         node --input-type=module -e "
           import pg from 'pg';
           const { Pool } = pg;
-          const dbUrl = process.env.DATABASE_URL;
-
-          console.log('Database URL starts with:', dbUrl.substring(0, 20) + '...');
-
-          const pool = new Pool({
-            connectionString: dbUrl,
-            ssl: { rejectUnauthorized: false }
-          });
-
           try {
-            await pool.query('SELECT 1');
-            console.log('Database connection successful!');
+            const dbUrl = process.env.DATABASE_URL;
+            console.log('Database URL starts with:', dbUrl.substring(0, 20) + '...');
+            const pool = new Pool({
+              connectionString: dbUrl,
+              ssl: { rejectUnauthorized: false }
+            });
+            const result = await pool.query('SELECT 1');
+            console.log('Connection OK:', result.rows);
+            await pool.end();
           } catch (err) {
             console.error('Connection failed:', err.message);
             process.exit(1);
-          } finally {
-            await pool.end();
           }
         "
-
 
     - name: Run database migrations
       env:
