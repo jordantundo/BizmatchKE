@@ -44,7 +44,7 @@ jobs:
     - name: Install dependencies
       run: npm ci
 
-        - name: Test database connection
+    - name: Test database connection
       env:
         DATABASE_URL: ${{ secrets.DATABASE_URL }}
       run: |
