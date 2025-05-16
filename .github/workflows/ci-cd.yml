@@ -7,7 +7,7 @@ on:
     branches: [ main ]
   # Optional: Add scheduled runs
   # schedule:
-  # - cron: '0 0 * * *' # Runs daily at midnight
+  #   - cron: '0 0 * * *' # Runs daily at midnight
 
 env:
   REGISTRY: ghcr.io
@@ -49,24 +49,42 @@ jobs:
         DATABASE_URL: ${{ secrets.DATABASE_URL }}
       run: |
         echo "Testing database connection..."
-        node --input-type=module -e "
-          import pg from 'pg';
-          const { Pool } = pg;
+        cat > test-db.js << 'EOF'
+        import pg from 'pg';
+        const { Pool } = pg;
+
+        async function testConnection() {
+          const dbUrl = process.env.DATABASE_URL;
+          console.log('Database URL starts with:', dbUrl.substring(0, 20) + '...');
+
+          const config = {
+            connectionString: dbUrl,
+            ssl: {
+              rejectUnauthorized: false
+            }
+          };
+
+          console.log('Attempting connection with config:', JSON.stringify(config, null, 2));
+          
           try {
-            const dbUrl = process.env.DATABASE_URL;
-            console.log('Database URL starts with:', dbUrl.substring(0, 20) + '...');
-            const pool = new Pool({
-              connectionString: dbUrl,
-              ssl: { rejectUnauthorized: false }
-            });
-            const result = await pool.query('SELECT 1');
-            console.log('Connection OK:', result.rows);
+            const pool = new Pool(config);
+            const client = await pool.connect();
+            console.log('Successfully connected to database');
+            await client.query('SELECT 1');
+            console.log('Successfully executed test query');
+            client.release();
             await pool.end();
+            process.exit(0);
           } catch (err) {
-            console.error('Connection failed:', err.message);
+            console.error('Connection error:', err);
             process.exit(1);
           }
-        "
+        }
+
+        testConnection();
+        EOF
+
+        node --input-type=module test-db.js
 
     - name: Run database migrations
       env:
