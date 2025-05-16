@@ -43,7 +43,7 @@ jobs:
 
     - name: Run database migrations
       env:
-        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/bizmatchke_test
+        DATABASE_URL: ${{ secrets.DATABASE_URL }}  # Using Render database URL from secrets
       run: npm run migrate
 
     - name: Run linting
@@ -51,7 +51,7 @@ jobs:
 
     - name: Run tests
       env:
-        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/bizmatchke_test
+        DATABASE_URL: ${{ secrets.DATABASE_URL }}  # Using Render database URL from secrets
         GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
         SESSION_SECRET: ${{ secrets.SESSION_SECRET }}
       run: npm test
@@ -88,6 +88,7 @@ jobs:
         build-args: |
           NEXT_PUBLIC_GROQ_API_KEY=${{ secrets.GROQ_API_KEY }}
           SESSION_SECRET=${{ secrets.SESSION_SECRET }}
+          DATABASE_URL=${{ secrets.DATABASE_URL }}  # Added DATABASE_URL to build args
 
     - name: Set up SSH
       run: |
@@ -97,5 +98,7 @@ jobs:
         ssh-keyscan ${{ secrets.SERVER_IP }} >> ~/.ssh/known_hosts
 
     - name: Deploy to production server
+      env:
+        DATABASE_URL: ${{ secrets.DATABASE_URL }}  # Pass DATABASE_URL to deploy script
       run: |
-        ssh ${{ secrets.SERVER_BOT }}@${{ secrets.SERVER_IP }} "cd ${{ env.DEPLOY_PATH }} && ./deploy.sh"
+        ssh ${{ secrets.SERVER_BOT }}@${{ secrets.SERVER_IP }} "cd ${{ env.DEPLOY_PATH }} && DATABASE_URL=${{ secrets.DATABASE_URL }} ./deploy.sh"
