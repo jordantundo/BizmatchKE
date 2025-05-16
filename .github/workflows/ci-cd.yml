@@ -18,6 +18,7 @@ env:
 jobs:
   test:
     runs-on: ubuntu-latest
+    environment: feature
     services:
       postgres:
         image: postgres:16-alpine
