@@ -1,6 +1,7 @@
-import next from '@next/eslint-plugin-next';
+const next = require('@next/eslint-plugin-next');
 
-export default [
+/** @type {import('eslint').FlatConfig[]} */
+module.exports = [
   {
     files: ['**/*.{js,jsx,ts,tsx}'],
     plugins: {
@@ -12,7 +13,7 @@ export default [
     },
     rules: {
       ...next.configs['core-web-vitals'].rules,
-      'react/no-unescaped-entities': 'off', // <-- disable the rule here
+      'react/no-unescaped-entities': 'off', // Disable that rule
     },
   },
 ];
