@@ -14,6 +14,7 @@ env:
 jobs:
   test:
     runs-on: ubuntu-latest
+    environment: feature  # 👈 THIS LINE IS MISSING
     services:
       postgres:
         image: postgres:16-alpine
