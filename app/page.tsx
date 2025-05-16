@@ -131,17 +131,17 @@ export default function Home() {
           <StaggeredContainer className="grid md:grid-cols-3 gap-8">
             <BusinessCard
               title="Eco-Friendly Packaging"
-              image="/placeholder.svg?height=300&width=400"
+              image="/images/image_package.jpg"
               description="Sustainable packaging solutions for local businesses."
             />
             <BusinessCard
               title="Mobile Agricultural Services"
-              image="/placeholder.svg?height=300&width=400"
+              image="/images/image_agric.jpg"
               description="Tech-enabled services for small-scale farmers."
             />
             <BusinessCard
               title="Online Skills Marketplace"
-              image="/placeholder.svg?height=300&width=400"
+              image="/images/image_online.jpg"
               description="Platform connecting skilled professionals with clients."
             />
           </StaggeredContainer>
@@ -166,31 +166,31 @@ export default function Home() {
 
           <StaggeredContainer className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
             <TeamCard
-              name="Mercy"
+              name="Mercy Okumu"
               role=""
               image="/images/team-mercy.jpg"
               description="Passionate about empowering Kenyan entrepreneurs with innovative solutions."
             />
             <TeamCard
-              name="Jotham"
+              name="Jotham Mboya"
               role=""
-              image="/images/team-jotham.png"
+              image="/images/team-jotham.jpg"
               description="Tech visionary with expertise in AI and machine learning applications."
             />
             <TeamCard
-              name="Faith"
+              name="Faith Cherotich"
               role=""
               image="/images/team-faith.jpg"
               description="Market research specialist with deep knowledge of Kenya's business landscape."
             />
             <TeamCard
-              name="Maxwell"
+              name="Maxwell Masai"
               role=""
               image="/images/team-maxwell.jpg"
               description="Experienced in scaling startups and creating strategic partnerships."
             />
             <TeamCard
-              name="Vallary"
+              name="Vallary Seroney"
               role=""
               image="/images/team-vallary.jpg"
               description="Dedicated to building and nurturing the BizMatchKE entrepreneur community."

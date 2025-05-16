@@ -454,7 +454,7 @@ CRITICAL: Ensure your JSON is valid. Every property name must be in double quote
     const temperature = 0.5 + Math.random() * 0.3 // Random temperature between 0.5 and 0.8
 
     const { text } = await generateText({
-      model: groq("mistral-saba-24b"), //"llama3-70b-8192
+      model: groq("mistral-saba-24b"), //if it fails use llama3-70b-8192
       prompt: prompt,
       temperature: temperature,
       maxTokens: 2000,
