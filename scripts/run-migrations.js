@@ -3,8 +3,21 @@ const fs = require('fs')
 const path = require('path')
 require('dotenv').config()
 
+// Add validation for DATABASE_URL
+if (!process.env.DATABASE_URL) {
+  console.error('Error: DATABASE_URL is not set')
+  process.exit(1)
+}
+
+// Log the connection string (without credentials) for debugging
+const sanitizedUrl = process.env.DATABASE_URL.replace(/:\/\/[^:]+:[^@]+@/, '://***:***@')
+console.log('Connecting to database:', sanitizedUrl)
+
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
+  ssl: {
+    rejectUnauthorized: false // Required for Render
+  }
 })
 
 async function runMigrations() {
@@ -67,4 +80,4 @@ async function runMigrations() {
   }
 }
 
-runMigrations() 
+runMigrations()
