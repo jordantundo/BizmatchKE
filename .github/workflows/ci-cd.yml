@@ -46,7 +46,7 @@ jobs:
     - name: Install dependencies
       run: |
         npm ci
-        npm install --save-dev eslint @next/eslint-plugin-next
+        npm install --save-dev eslint@^8.0.0 @next/eslint-plugin-next
 
     - name: Verify secrets
       run: |
