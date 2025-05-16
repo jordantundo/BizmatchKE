@@ -46,8 +46,17 @@ jobs:
       run: npm ci
 
     - name: Test database connection
+      env:
+        DATABASE_URL: ${{ secrets.DATABASE_URL }}
       run: |
         echo "Testing database connection..."
+        echo "Checking if DATABASE_URL secret exists..."
+        if [ -z "$DATABASE_URL" ]; then
+          echo "DATABASE_URL is empty or not set"
+          exit 1
+        fi
+        echo "DATABASE_URL is set (length: ${#DATABASE_URL})"
+        
         cat > test-db.js << 'EOF'
         const { Pool } = require('pg');
 
