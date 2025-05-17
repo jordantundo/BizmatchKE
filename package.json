@@ -80,6 +80,7 @@
     "zod": "latest"
   },
   "devDependencies": {
+    "@next/eslint-plugin-next": "^15.3.2",
     "@types/bcrypt": "^5.0.2",
     "@types/node": "^22",
     "@types/pg": "^8.15.1",
