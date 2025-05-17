@@ -1,22 +1,23 @@
 const tsParser = require('@typescript-eslint/parser');
+const tsPlugin = require('@typescript-eslint/eslint-plugin');
+const nextPlugin = require('@next/eslint-plugin-next');
 
 module.exports = [
   {
     languageOptions: {
-      parser: tsParser, // not a string!
+      parser: tsParser,
       parserOptions: {
         sourceType: 'module',
         ecmaVersion: 'latest',
-        project: './tsconfig.json', // if you use TypeScript
+        project: './tsconfig.json',
       },
     },
     plugins: {
-      '@typescript-eslint': require('@typescript-eslint/eslint-plugin'),
-      '@next/next': require('@next/eslint-plugin-next'),
+      '@typescript-eslint': tsPlugin,
+      '@next/next': nextPlugin,
     },
-
     rules: {
-      ...next.configs['core-web-vitals'].rules,
+      ...nextPlugin.configs['core-web-vitals'].rules,
       'react/no-unescaped-entities': 'off',
     },
   },
