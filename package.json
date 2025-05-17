@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "npx eslint .",
     "migrate": "node scripts/run-migrations.js",
-    "test:db": "test:db": "ts-node --transpile-only -r dotenv/config scripts/test-db.ts",
+    "test:db": "ts-node --transpile-only -r dotenv/config scripts/test-db.ts",
     "test": "npm run test:db"
   },
   "dependencies": {
